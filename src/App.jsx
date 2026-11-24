@@ -56,13 +56,4 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', background: '#fff', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #eee' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span style={{ background: '#ff007a', color: '#fff', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>♀️</span><b style={{ fontSize: 20 }}>Venus Exchange</b><span style={{ background: '#fff0f6', color: '#ff007a', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 999 }}>DEX</span></div>
-        <button onClick={connectWallet} style={{ background: '#ff007a', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 999, fontWeight: 700 }}>{wallet ? wallet.slice(0,6)+'...'+wallet.slice(-4) : 'Connect Wallet'}</button>
-      </div>
-      <div style={{ maxWidth: 480, margin: '30px auto', padding: '0 16px' }}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <button onClick={() => setTab('swap')} style={{ flex: 1, padding: 12, borderRadius: 999, border: 'none', background: tab==='swap' ? '#ff007a' : '#f0f0f0', color: tab==='swap' ? '#fff' : '#000', fontWeight: 800 }}>Swap</button>
-          <button onClick={() => setTab('pool')} style={{ flex: 1, padding: 12, borderRadius: 999, border: 'none', background: tab==='pool' ? '#ff007a' : '#f0f0f0', color: tab==='pool' ? '#fff' : '#000', fontWeight: 800 }}>Pool</button>
-        </div>
-        <div style={{ border: '1px solid #eee', borderRadius: 24, padding: 16, boxShadow: '0 10px 40px rgba(0,0,0,0.06)' }}>
-          {tab
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span style={{ background: '#ff007a', color: '#fff', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>♀️</span>
