@@ -1,59 +1,100 @@
 import { useState, useEffect } from 'react'
 
-const TOKENS = [
-  { symbol: 'MARS', name: 'Mars Token', logo: '🔴' },
-  { symbol: 'USDC', name: 'USD Coin', logo: '🔵' },
-  { symbol: 'tAMM', name: 'Test Ammora', logo: '🟣' },
-]
-
 export default function App() {
   const [tab, setTab] = useState('swap')
-  const [fromToken, setFromToken] = useState(TOKENS[0])
-  const [toToken, setToToken] = useState(TOKENS[1])
+  const [from, setFrom] = useState('MARS')
+  const [to, setTo] = useState('USDC')
   const [amountIn, setAmountIn] = useState('')
   const [amountOut, setAmountOut] = useState('')
   const [amountA, setAmountA] = useState('')
   const [amountB, setAmountB] = useState('')
-  const [wallet, setWallet] = useState(null)
   const [status, setStatus] = useState('')
-  const [positions, setPositions] = useState([])
 
-  const connectWallet = async () => {
-    if (!window.ethereum) return alert('Install MetaMask dulu!')
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-    setWallet(accounts[0])
-    try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x16456' }] }) } catch(e) {}
-  }
-
+  // Hitung hasil swap
   useEffect(() => {
-    if (!amountIn) { setAmountOut(''); return }
-    const rate = fromToken.symbol === 'MARS' && toToken.symbol === 'USDC' ? 2 : fromToken.symbol === 'USDC' && toToken.symbol === 'MARS' ? 0.5 : 1
-    setAmountOut((parseFloat(amountIn) * rate).toString())
-  }, [amountIn, fromToken, toToken])
+    if (!amountIn) {
+      setAmountOut('')
+      return
+    }
+    let rate = 1
+    if (from === 'MARS' && to === 'USDC') rate = 2
+    if (from === 'USDC' && to === 'MARS') rate = 0.5
+    setAmountOut(String(parseFloat(amountIn) * rate))
+  }, [amountIn, from, to])
 
-  const flipTokens = () => {
-    const temp = fromToken
-    setFromToken(toToken)
-    setToToken(temp)
-    setAmountIn(amountOut)
-  }
-
-  const doSwap = async () => {
-    if (!wallet) return connectWallet()
-    if (!amountIn) return alert('Isi jumlah dulu!')
-    setStatus(`✅ SWAP BERHASIL: ${amountIn} ${fromToken.symbol} → ${amountOut} ${toToken.symbol}`)
-    setAmountIn(''); setAmountOut('')
-  }
-
-  const addLiquidity = async () => {
-    if (!wallet) return connectWallet()
-    if (!amountA || !amountB) return alert('Isi kedua jumlah!')
-    setPositions([{ id: Date.now(), pair: 'MARS / USDC', a: amountA, b: amountB }, ...positions])
-    setStatus(`✅ LIQUIDITY DITAMBAH: ${amountA} MARS + ${amountB} USDC`)
-    setAmountA(''); setAmountB('')
+  // INI TOMBOL BOLAK-BALIKNYA - UDAH BENER
+  function flip() {
+    setFrom(to)
+    setTo(from)
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#fff', fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #eee' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span style={{ background: '#ff007a', color: '#fff', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>♀️</span>
+    <div style={{ minHeight: '100vh', background: '#fff', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: 16, borderBottom: '1px solid #eee' }}>
+        <b style={{ fontSize: 20 }}>♀️ Venus Exchange</b>
+        <button style={{ background: '#ff007a', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 999, fontWeight: 'bold' }}>Connect Wallet</button>
+      </div>
+
+      <div style={{ maxWidth: 480, margin: '30px auto', padding: '0 16px' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button onClick={() => setTab('swap')} style={{ flex: 1, padding: 12, borderRadius: 999, border: 'none', background: tab === 'swap' ? '#ff007a' : '#eee', color: tab === 'swap' ? '#fff' : '#000', fontWeight: 'bold' }}>Swap</button>
+          <button onClick={() => setTab('pool')} style={{ flex: 1, padding: 12, borderRadius: 999, border: 'none', background: tab === 'pool' ? '#ff007a' : '#eee', color: tab === 'pool' ? '#fff' : '#000', fontWeight: 'bold' }}>Pool</button>
+        </div>
+
+        <div style={{ border: '1px solid #eee', borderRadius: 24, padding: 16 }}>
+          {tab === 'swap' ? (
+            <div>
+              <b>Swap</b>
+              <p style={{ fontSize: 12, color: '#888' }}>1 MARS = 2 USDC</p>
+
+              <div style={{ background: '#f7f7f7', borderRadius: 16, padding: 16 }}>
+                <div style={{ fontSize: 12, color: '#888' }}>You pay</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input value={amountIn} onChange={(e) => setAmountIn(e.target.value)} placeholder="0.0" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 26, fontWeight: 'bold', width: '100%' }} />
+                  <select value={from} onChange={(e) => setFrom(e.target.value)} style={{ borderRadius: 999, padding: '8px 12px', fontWeight: 'bold' }}>
+                    <option>MARS</option>
+                    <option>USDC</option>
+                    <option>tAMM</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'center', margin: '8px 0' }}>
+                <button onClick={flip} style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid #ff007a', background: '#fff', fontSize: 20, cursor: 'pointer' }}>↓</button>
+              </div>
+
+              <div style={{ background: '#f7f7f7', borderRadius: 16, padding: 16 }}>
+                <div style={{ fontSize: 12, color: '#888' }}>You receive</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input value={amountOut} readOnly placeholder="0.0" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 26, fontWeight: 'bold', width: '100%' }} />
+                  <select value={to} onChange={(e) => setTo(e.target.value)} style={{ borderRadius: 999, padding: '8px 12px', fontWeight: 'bold' }}>
+                    <option>MARS</option>
+                    <option>USDC</option>
+                    <option>tAMM</option>
+                  </select>
+                </div>
+              </div>
+
+              <button onClick={() => setStatus('✅ SWAP BERHASIL: ' + amountIn + ' ' + from + ' → ' + amountOut + ' ' + to)} style={{ width: '100%', marginTop: 16, background: '#ff007a', color: '#fff', border: 'none', padding: 16, borderRadius: 16, fontWeight: 'bold' }}>Swap</button>
+            </div>
+          ) : (
+            <div>
+              <b>Add Liquidity - MARS / USDC</b>
+              <div style={{ background: '#f7f7f7', borderRadius: 16, padding: 16, marginTop: 12 }}>
+                <div style={{ fontSize: 12, color: '#888' }}>MARS</div>
+                <input value={amountA} onChange={(e) => setAmountA(e.target.value)} placeholder="0.0" style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 26, fontWeight: 'bold' }} />
+              </div>
+              <div style={{ background: '#f7f7f7', borderRadius: 16, padding: 16, marginTop: 10 }}>
+                <div style={{ fontSize: 12, color: '#888' }}>USDC</div>
+                <input value={amountB} onChange={(e) => setAmountB(e.target.value)} placeholder="0.0" style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 26, fontWeight: 'bold' }} />
+              </div>
+              <button onClick={() => setStatus('✅ LIQUIDITY DITAMBAH: ' + amountA + ' MARS + ' + amountB + ' USDC')} style={{ width: '100%', marginTop: 16, background: '#ff007a', color: '#fff', border: 'none', padding: 16, borderRadius: 16, fontWeight: 'bold' }}>Add Liquidity</button>
+            </div>
+          )}
+
+          {status && <p style={{ fontSize: 13, background: '#fff0f6', padding: 10, borderRadius: 12, marginTop: 12 }}>{status}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
