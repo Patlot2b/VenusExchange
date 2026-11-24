@@ -1,95 +1,82 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { createWalletClient, custom, parseUnits } from 'viem'
+import './index.css'
+
+const CHAIN_ID = 91342
+const RPC = 'https://sepolia-rpc.giwa.io'
+
+const TOKENS = [
+  { symbol: 'MARS', name: 'Mars Coin', address: '0xB9801dF3532c22F55Cc063198D74b8C64e6C6Cef', decimals: 18 },
+  { symbol: 'WETH', name: 'Wrapped ETH', address: '0x38A7e25ca0CC945CECDD3B953519A6cD24f9df29', decimals: 18 },
+]
 
 export default function App() {
-  const [tab, setTab] = useState('swap')
-  const [from, setFrom] = useState('MARS')
-  const [to, setTo] = useState('USDC')
-  const [amountIn, setAmountIn] = useState('')
-  const [amountOut, setAmountOut] = useState('')
-  const [amountA, setAmountA] = useState('')
-  const [amountB, setAmountB] = useState('')
-  const [status, setStatus] = useState('')
   const [wallet, setWallet] = useState(null)
+  const [from, setFrom] = useState(TOKENS[1])
+  const [to, setTo] = useState(TOKENS[0])
+  const [amount, setAmount] = useState('0.001')
+  const [quote, setQuote] = useState(null)
+  const [status, setStatus] = useState('Connect wallet to GIWA Sepolia (91342)')
+  const [loading, setLoading] = useState(false)
 
   async function connectWallet() {
-    if (!window.ethereum) {
-      alert('Install MetaMask dulu!')
-      return
-    }
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-    setWallet(accounts[0])
+    if (!window.ethereum) return alert('Install MetaMask!')
+    const [acc] = await window.ethereum.request({ method: 'eth_requestAccounts' })
     try {
       await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x16456' }] })
-    } catch(e) {}
-  }
-
-  useEffect(() => {
-    if (!amountIn) {
-      setAmountOut('')
-      return
+    } catch {
+      await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{ chainId: '0x16456', chainName: 'GIWA Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: [RPC], blockExplorerUrls: ['https://sepolia-explorer.giwa.io'] }] })
     }
-    let rate = 1
-    if (from === 'MARS' && to === 'USDC') rate = 2
-    if (from === 'USDC' && to === 'MARS') rate = 0.5
-    setAmountOut(String(parseFloat(amountIn) * rate))
-  }, [amountIn, from, to])
-
-  function flip() {
-    setFrom(to)
-    setTo(from)
+    setWallet(acc)
+    setStatus('Wallet connected to GIWA Sepolia ✅')
   }
+
+  async function getQuote() {
+    if (!wallet) return alert('Connect Wallet dulu!')
+    setLoading(true)
+    setStatus('Getting real quote from Ammora...')
+    try {
+      const { AmmoraRouteClient } = await import('@ammora-protocol/sdk')
+      const ammora = await AmmoraRouteClient.create({ chainId: CHAIN_ID })
+      const q = await ammora.quoteExactIn({
+        tokenIn: from.address,
+        tokenOut: to.address,
+        amountIn: parseUnits(amount || '0', from.decimals),
+        from: wallet,
+      })
+      setQuote(q)
+      setStatus('Real quote from Ammora ✅ : ' + JSON.stringify(q).slice(0, 300))
+    } catch (e) {
+      console.error(e)
+      setStatus('Quote failed: ' + e.message)
+      alert('Quote gagal: ' + e.message)
+    }
+    setLoading(false)
+  }
+
+  async function doSwap() {
+    if (!quote) return alert('Get Quote dulu!')
+    const tx = quote.tx || quote.transaction || quote.calldata
+    if (!tx) return alert('Quote ini tidak bawa tx. Cek docs.ammora.org/examples')
+    try {
+      const walletClient = createWalletClient({ chain: { id: CHAIN_ID, name: 'GIWA Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [RPC] } } }, transport: custom(window.ethereum) })
+      const hash = await walletClient.sendTransaction({ account: wallet, to: tx.to, data: tx.data, value: BigInt(tx.value || 0) })
+      setStatus('Swap sent! Hash: ' + hash)
+      alert('Swap terkirim! Cek: sepolia-explorer.giwa.io/tx/' + hash)
+    } catch (e) { alert('Swap gagal: ' + e.message) }
+  }
+
+  function flip() { setFrom(to); setTo(from); setQuote(null) }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#fff', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: 16, borderBottom: '1px solid #eee' }}>
-        <b style={{ fontSize: 20 }}>♀️ Venus Exchange</b>
-        <button onClick={connectWallet} style={{ background: '#ff007a', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 999, fontWeight: 'bold' }}>{wallet ? wallet.slice(0,6)+'...'+wallet.slice(-4) : 'Connect Wallet'}</button>
+    <div style={{ background: '#0a0a0f', color: 'white', minHeight: '100vh', padding: 20, fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', maxWidth: 520, margin: '0 auto', alignItems: 'center' }}>
+        <h2>🚀 MARS<span style={{ color: '#ff4d6d' }}>DEX</span> <span style={{ fontSize: 12, color: '#888' }}>x Ammora • GIWA 91342</span></h2>
+        <button onClick={connectWallet} style={{ background: wallet ? '#22c55e' : '#ff4d6d', color: 'white', border: 'none', padding: '10px 16px', borderRadius: 20, fontWeight: 'bold' }}>{wallet ? '✅ ' + wallet.slice(0, 6) + '...' : 'Connect Wallet'}</button>
       </div>
 
-      <div style={{ maxWidth: 480, margin: '30px auto', padding: '0 16px' }}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <button onClick={() => setTab('swap')} style={{ flex: 1, padding: 12, borderRadius: 999, border: 'none', background: tab === 'swap' ? '#ff007a' : '#eee', color: tab === 'swap' ? '#fff' : '#000', fontWeight: 'bold' }}>Swap</button>
-          <button onClick={() => setTab('pool')} style={{ flex: 1, padding: 12, borderRadius: 999, border: 'none', background: tab === 'pool' ? '#ff007a' : '#eee', color: tab === 'pool' ? '#fff' : '#000', fontWeight: 'bold' }}>Pool</button>
-        </div>
-
-        <div style={{ border: '1px solid #eee', borderRadius: 24, padding: 16 }}>
-          {tab === 'swap' ? (
-            <div>
-              <b>Swap</b>
-              <p style={{ fontSize: 12, color: '#888' }}>1 MARS = 2 USDC</p>
-
-              <div style={{ background: '#f7f7f7', borderRadius: 16, padding: 16 }}>
-                <div style={{ fontSize: 12, color: '#888' }}>You pay</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={amountIn} onChange={(e) => setAmountIn(e.target.value)} placeholder="0.0" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 26, fontWeight: 'bold', width: '100%' }} />
-                  <select value={from} onChange={(e) => setFrom(e.target.value)} style={{ borderRadius: 999, padding: '8px 12px', fontWeight: 'bold' }}>
-                    <option>MARS</option>
-                    <option>USDC</option>
-                    <option>tAMM</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'center', margin: '8px 0' }}>
-                <button onClick={flip} style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid #ff007a', background: '#fff', fontSize: 20, cursor: 'pointer' }}>↓</button>
-              </div>
-
-              <div style={{ background: '#f7f7f7', borderRadius: 16, padding: 16 }}>
-                <div style={{ fontSize: 12, color: '#888' }}>You receive</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={amountOut} readOnly placeholder="0.0" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 26, fontWeight: 'bold', width: '100%' }} />
-                  <select value={to} onChange={(e) => setTo(e.target.value)} style={{ borderRadius: 999, padding: '8px 12px', fontWeight: 'bold' }}>
-                    <option>MARS</option>
-                    <option>USDC</option>
-                    <option>tAMM</option>
-                  </select>
-                </div>
-              </div>
-
-              <button onClick={() => setStatus('✅ SWAP BERHASIL: ' + amountIn + ' ' + from + ' → ' + amountOut + ' ' + to)} style={{ width: '100%', marginTop: 16, background: '#ff007a', color: '#fff', border: 'none', padding: 16, borderRadius: 16, fontWeight: 'bold' }}>Swap</button>
-            </div>
-          ) : (
-            <div>
-              <b>Add Liquidity - MARS / USDC</b>
-              <div style={{ background: '#f7f7f7', borderRadius: 16, padding: 16, marginTop: 12 }}>
-                <div style={{ fontSize: 12, color: '#888' }}>MARS</
+      <div style={{ background: '#15151f', border: '1px solid #2a2a3a', borderRadius: 20, padding: 16, maxWidth: 520, margin: '20px auto' }}>
+        <p style={{ color: '#888', fontSize: 12 }}>You Pay</p>
+        <div style={{ background: '#0d0d14', borderRadius: 16, padding: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <input value={amount} onChange={e => setAmount(e.target.value)} style={{ background: 'none', border: 'none
