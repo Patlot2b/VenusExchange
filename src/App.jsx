@@ -1,82 +1,60 @@
 import { useState } from 'react'
-import { createWalletClient, custom, parseUnits } from 'viem'
+import { parseUnits, createWalletClient, custom } from 'viem'
 import './index.css'
-
-const CHAIN_ID = 91342
 const RPC = 'https://sepolia-rpc.giwa.io'
-
+const CID = 91342
 const TOKENS = [
-  { symbol: 'MARS', name: 'Mars Coin', address: '0xB9801dF3532c22F55Cc063198D74b8C64e6C6Cef', decimals: 18 },
-  { symbol: 'WETH', name: 'Wrapped ETH', address: '0x38A7e25ca0CC945CECDD3B953519A6cD24f9df29', decimals: 18 },
+ { s: 'WETH', a: '0x38A7e25ca0CC945CECDD3B953519A6cD24f9df29' },
+ { s: 'MARS', a: '0xB9801dF3532c22F55Cc063198D74b8C64e6C6Cef' },
 ]
-
 export default function App() {
-  const [wallet, setWallet] = useState(null)
-  const [from, setFrom] = useState(TOKENS[1])
-  const [to, setTo] = useState(TOKENS[0])
-  const [amount, setAmount] = useState('0.001')
-  const [quote, setQuote] = useState(null)
-  const [status, setStatus] = useState('Connect wallet to GIWA Sepolia (91342)')
-  const [loading, setLoading] = useState(false)
-
-  async function connectWallet() {
-    if (!window.ethereum) return alert('Install MetaMask!')
-    const [acc] = await window.ethereum.request({ method: 'eth_requestAccounts' })
-    try {
-      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x16456' }] })
-    } catch {
-      await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{ chainId: '0x16456', chainName: 'GIWA Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: [RPC], blockExplorerUrls: ['https://sepolia-explorer.giwa.io'] }] })
-    }
-    setWallet(acc)
-    setStatus('Wallet connected to GIWA Sepolia ✅')
-  }
-
-  async function getQuote() {
-    if (!wallet) return alert('Connect Wallet dulu!')
-    setLoading(true)
-    setStatus('Getting real quote from Ammora...')
-    try {
-      const { AmmoraRouteClient } = await import('@ammora-protocol/sdk')
-      const ammora = await AmmoraRouteClient.create({ chainId: CHAIN_ID })
-      const q = await ammora.quoteExactIn({
-        tokenIn: from.address,
-        tokenOut: to.address,
-        amountIn: parseUnits(amount || '0', from.decimals),
-        from: wallet,
-      })
-      setQuote(q)
-      setStatus('Real quote from Ammora ✅ : ' + JSON.stringify(q).slice(0, 300))
-    } catch (e) {
-      console.error(e)
-      setStatus('Quote failed: ' + e.message)
-      alert('Quote gagal: ' + e.message)
-    }
-    setLoading(false)
-  }
-
-  async function doSwap() {
-    if (!quote) return alert('Get Quote dulu!')
-    const tx = quote.tx || quote.transaction || quote.calldata
-    if (!tx) return alert('Quote ini tidak bawa tx. Cek docs.ammora.org/examples')
-    try {
-      const walletClient = createWalletClient({ chain: { id: CHAIN_ID, name: 'GIWA Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [RPC] } } }, transport: custom(window.ethereum) })
-      const hash = await walletClient.sendTransaction({ account: wallet, to: tx.to, data: tx.data, value: BigInt(tx.value || 0) })
-      setStatus('Swap sent! Hash: ' + hash)
-      alert('Swap terkirim! Cek: sepolia-explorer.giwa.io/tx/' + hash)
-    } catch (e) { alert('Swap gagal: ' + e.message) }
-  }
-
-  function flip() { setFrom(to); setTo(from); setQuote(null) }
-
-  return (
-    <div style={{ background: '#0a0a0f', color: 'white', minHeight: '100vh', padding: 20, fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', maxWidth: 520, margin: '0 auto', alignItems: 'center' }}>
-        <h2>🚀 MARS<span style={{ color: '#ff4d6d' }}>DEX</span> <span style={{ fontSize: 12, color: '#888' }}>x Ammora • GIWA 91342</span></h2>
-        <button onClick={connectWallet} style={{ background: wallet ? '#22c55e' : '#ff4d6d', color: 'white', border: 'none', padding: '10px 16px', borderRadius: 20, fontWeight: 'bold' }}>{wallet ? '✅ ' + wallet.slice(0, 6) + '...' : 'Connect Wallet'}</button>
-      </div>
-
-      <div style={{ background: '#15151f', border: '1px solid #2a2a3a', borderRadius: 20, padding: 16, maxWidth: 520, margin: '20px auto' }}>
-        <p style={{ color: '#888', fontSize: 12 }}>You Pay</p>
-        <div style={{ background: '#0d0d14', borderRadius: 16, padding: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <input value={amount} onChange={e => setAmount(e.target.value)} style={{ background: 'none', border: 'none
+ const [wallet, setWallet] = useState('')
+ const [amt, setAmt] = useState('0.001')
+ const [from, setFrom] = useState(0)
+ const [to, setTo] = useState(1)
+ const [status, setStatus] = useState('Connect wallet GIWA Sepolia')
+ const [quote, setQuote] = useState('')
+ async function connect() {
+  const [acc] = await window.ethereum.request({ method: 'eth_requestAccounts' })
+  await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x16456' }] }).catch(async () => {
+   await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{ chainId: '0x16456', chainName: 'GIWA Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: [RPC], blockExplorerUrls: ['https://sepolia-explorer.giwa.io'] }] })
+  })
+  setWallet(acc)
+  setStatus('Connected ' + acc)
+ }
+ async function getQ() {
+  if (!wallet) return alert('Connect dulu')
+  setStatus('Getting quote...')
+  try {
+   const { AmmoraRouteClient } = await import('@ammora-protocol/sdk')
+   const c = await AmmoraRouteClient.create({ chainId: CID })
+   const q = await c.quoteExactIn({ tokenIn: TOKENS[from].a, tokenOut: TOKENS[to].a, amountIn: parseUnits(amt || '0', 18), from: wallet })
+   setQuote(JSON.stringify(q).slice(0, 400))
+   setStatus('Quote OK')
+  } catch (e) { setStatus('Quote gagal: ' + e.message) }
+ }
+ async function swap() {
+  if (!quote) return alert('Get Quote dulu')
+  alert('Quote OK, cek console untuk tx. Lanjut ke swap di step berikutnya.')
+ }
+ return (
+  <div style={{ background: '#0a0a0f', color: 'white', minHeight: '100vh', padding: 20, fontFamily: 'sans-serif' }}>
+   <div style={{ maxWidth: 520, margin: '0 auto' }}>
+    <h2>MARS DEX <span style={{ color: '#ff4d6d' }}>x Ammora</span></h2>
+    <button onClick={connect} style={{ background: '#ff4d6d', color: 'white', border: 'none', padding: 12, borderRadius: 20, width: '100%' }}>{wallet ? wallet.slice(0, 10) : 'Connect Wallet'}</button>
+    <div style={{ background: '#15151f', borderRadius: 20, padding: 16, marginTop: 16 }}>
+     <p>You Pay</p>
+     <input value={amt} onChange={e => setAmt(e.target.value)} style={{ background: '#0d0d14', color: 'white', fontSize: 28, width: '100%', padding: 10, border: 'none', borderRadius: 12 }} />
+     <select value={from} onChange={e => setFrom(Number(e.target.value))} style={{ marginTop: 10, padding: 10, width: '100%' }}><option value={0}>WETH</option><option value={1}>MARS</option></select>
+     <p style={{ textAlign: 'center' }}>↓</p>
+     <p>You Receive</p>
+     <div style={{ background: '#0d0d14', padding: 10, borderRadius: 12, fontSize: 12, wordBreak: 'break-all' }}>{quote || '-'}</div>
+     <select value={to} onChange={e => setTo(Number(e.target.value))} style={{ marginTop: 10, padding: 10, width: '100%' }}><option value={0}>WETH</option><option value={1}>MARS</option></select>
+     <button onClick={getQ} style={{ width: '100%', marginTop: 12, padding: 14, background: '#333', color: 'white', border: 'none', borderRadius: 12 }}>GET REAL QUOTE</button>
+     <button onClick={swap} style={{ width: '100%', marginTop: 8, padding: 14, background: '#ff4d6d', color: 'white', border: 'none', borderRadius: 12 }}>SWAP ON GIWA</button>
+     <p style={{ color: '#f59e0b', fontSize: 12 }}>{status}</p>
+    </div>
+   </div>
+  </div>
+ )
+}
